@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Un Cielo de Mensajes para Ti</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Kalam:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kalam', cursive;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+        }
+        .title-font { font-family: 'Playfair Display', serif; }
+
+        /* Preloader */
+        #preloader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #090a0f; z-index: 300;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.5rem;
+            transition: opacity 0.8s ease-out;
+        }
+        
+        #starry-sky {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            z-index: -1;
+        }
+        .star {
+            position: absolute; background-color: white; border-radius: 50%;
+            animation: twinkle linear infinite;
+        }
+        @keyframes twinkle { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+        #envelope-container { position: relative; width: 100%; height: 70vh; }
+
+        .envelope {
+            position: absolute; width: 120px; height: 80px;
+            cursor: pointer; opacity: 0;
+            transition: opacity 0.5s ease;
+            background: none; border: none; padding: 0;
+        }
+        .envelope.visible { opacity: 1; }
+        .envelope.dragging { z-index: 10; cursor: grabbing; }
+        .envelope.opened { opacity: 0.4 !important; cursor: default; }
+        
+        .envelope:focus-visible {
+            outline: 2px solid #f9a8d4; outline-offset: 4px; border-radius: 8px;
+        }
+        
+        .envelope-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        .envelope:not(.opened):hover .envelope-inner, 
+        .envelope:not(.opened):focus-visible .envelope-inner {
+            transform: scale(1.15) rotate(0deg) !important;
+        }
+        
+        .envelope:not(.opened) .envelope-body {
+             animation: pulse-glow 2s infinite;
+        }
+        .envelope:not(.opened):hover .envelope-body,
+        .envelope:not(.opened):focus-visible .envelope-body {
+            box-shadow: 0 0 25px rgba(255, 220, 220, 0.7);
+        }
+
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 25px rgba(255, 220, 220, 0.5); } 50% { box-shadow: 0 0 35px rgba(255, 220, 220, 0.8); } }
+
+        .envelope-body {
+            position: absolute; width: 100%; height: 100%;
+            background-color: #fde4e4; border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 2; 
+            transition: box-shadow 0.4s ease;
+        }
+        .envelope-flap {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #f9a8a8;
+            clip-path: polygon(0 0, 100% 0, 50% 60%);
+            -webkit-clip-path: polygon(0 0, 100% 0, 50% 60%);
+            border-radius: 6px 6px 0 0; z-index: 3;
+        }
+        .envelope-heart {
+            position: absolute; top: 25px; left: 50%;
+            transform: translateX(-50%); width: 20px; height: 20px; color: #ef4444;
+        }
+        
+        #modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6); 
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center; justify-content: center; z-index: 100;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease; cursor: pointer;
+        }
+        #modal.show { opacity: 1; pointer-events: auto; }
+        #modal-envelope {
+            position: relative; width: 340px; height: 220px;
+            transform: scale(0.5);
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            cursor: default;
+        }
+        #modal-envelope .envelope-body { position: relative; overflow: hidden; animation: none; }
+        #modal.show #modal-envelope { transform: scale(1); }
+        #modal-envelope .envelope-flap {
+            transition: transform 0.5s ease-in-out 0.5s; transform-origin: top;
+        }
+        #modal.show #modal-envelope.open-flap .envelope-flap { transform: rotateX(180deg); }
+        #letter {
+            position: absolute; bottom: 0; left: 10px; width: 320px; height: 250px;
+            background-color: #fffaf0; box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            padding: 20px; border-radius: 4px; color: #333; box-sizing: border-box;
+            transform: translateY(100%);
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.6s; z-index: 1;
+        }
+        #letter-text {
+            width: 100%; height: 100%; overflow-y: auto; font-size: 22px;
+            line-height: 1.4; text-align: center;
+        }
+        #letter-text::-webkit-scrollbar { width: 8px; }
+        #letter-text::-webkit-scrollbar-track { background: transparent; }
+        #letter-text::-webkit-scrollbar-thumb { background-color: #f9a8a8; border-radius: 4px; }
+        #modal.show #modal-envelope.open-flap #letter { transform: translateY(40px); }
+        
+        #final-message {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center; transition: opacity 1s ease;
+        }
+        .heart-beat { animation: heartBeat 1.5s infinite ease-in-out; color: #ef4444; }
+        @keyframes heartBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+        #edit-mode { display: none; }
+        #edit-mode.active {
+            display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #090a0f; z-index: 200; overflow-y: auto;
+        }
+        .edit-field { position: relative; }
+        .remove-btn {
+            position: absolute; top: 8px; right: 8px;
+            background: #ef4444; color: white; border-radius: 50%;
+            width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0.5; transition: opacity 0.3s;
+        }
+        .remove-btn:hover { opacity: 1; }
+
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="preloader">Cargando tu cielo...</div>
+    <div id="starry-sky"></div>
+
+    <main id="main-content" class="flex flex-col items-center justify-center min-h-screen p-4 text-center transition-opacity duration-1000 opacity-0">
+        <h1 class="title-font text-4xl sm:text-6xl mb-4">Un Cielo de Mensajes para Ti</h1>
+        <p id="subtitle" class="text-xl text-gray-300 mb-8">Arrastra y elige un sobre para descubrir por qué eres tan especial.</p>
+        <div id="envelope-container"></div>
+        <p id="counter" class="text-lg mt-8">0 / 38 abiertos</p>
+    </main>
+
+    <div id="modal">
+        <div id="modal-envelope">
+             <div class="envelope-body">
+                <div id="letter"><p id="letter-text"></p></div>
+             </div>
+             <div class="envelope-flap"></div>
+             <div class="envelope-heart">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+             </div>
+        </div>
+    </div>
+
+    <div id="final-message" class="opacity-0 pointer-events-none">
+        <h2 class="title-font text-5xl sm:text-7xl mb-6">Eres mi universo entero.</h2>
+        <div class="heart-beat">
+            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        </div>
+        <div class="mt-8"><button id="reset-button" class="bg-white/20 backdrop-blur-sm -webkit-backdrop-filter: blur(5px); text-white px-6 py-3 rounded-full hover:bg-white/30 transition-colors">Volver a empezar</button></div>
+    </div>
+
+    <div id="edit-mode" class="p-8">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="title-font text-5xl mb-4 text-center">Modo Edición</h1>
+            <p class="text-gray-400 text-center mb-8">Escribe tus mensajes. Puedes añadir o quitar tantos como quieras.</p>
+            <div id="edit-form" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <div class="text-center mt-6">
+                <button id="add-message-button" class="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition-colors">Añadir Mensaje</button>
+            </div>
+            <div class="text-center mt-8">
+                <button id="save-button" class="bg-pink-500 text-white px-8 py-3 rounded-full hover:bg-pink-600 transition-colors text-xl">Crear Magia</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const defaultReasons = [ "Tu increíble sentido del humor.", "La forma en que me haces sentir en paz.", "Tu sonrisa.", "Tu curiosidad por las todas las cosas nuevas.", "Tu forma de ser.", "Tu pasión por lo que te gusta.", "El brillo de tus ojos al mirarme.", "Tu infinita paciencia conmigo.", "Tu admirable capacidad de superación.", "El corazón más bonito que conozco.", "Siempre encuentras las palabras perfectas.", "Tus abrazos.", "Pasar tiempo contigo.", "Lo cómodo que me haces sentir al estar a tu lado.", "Tu lealtad y apoyo incondicional.", "El cariño en los pequeños detalles.", "La forma que tienes de afrontar los problemas.", "Las ganas que tienes de descubrir mundo.", "Me inspiras a ser una mejor persona.", "Simplemente por ser tú.", "Simplemente por ser tú", "Solamente, decirte que te quiero.", "Eres de las cosas más bonitas que me han pasado en la vida.", "Siempre en mi mente las 24H del día.", "1000 Ganas de verte siempre.", "Lo organizado que eres.", "Me encanta que me escuches cuando lo necesito y al reves igual <3.", "Lo feliz que te pones al contarme algo nuevo.", "Lo familiar que eres.", "Tú naricita", "Tu amor tanto por tú familia, como por las jotas.", "Todo lo nuevo que me enseñas", "Todos tus amigos te quieren mucho.", "Podría ponerte 1000 cosas más.", "Ratoncito.", "Mi pequeñito <3", "Te echo de menos siempre :(", "Quiero que duermas siempre conmigo.",  ];
+        
+        const envelopeContainer = document.getElementById('envelope-container');
+        const counterElement = document.getElementById('counter');
+        const modal = document.getElementById('modal');
+        const modalEnvelope = document.getElementById('modal-envelope');
+        const letterText = document.getElementById('letter-text');
+        const mainContent = document.getElementById('main-content');
+        const finalMessage = document.getElementById('final-message');
+        const resetButton = document.getElementById('reset-button');
+        const editModeContainer = document.getElementById('edit-mode');
+        const editForm = document.getElementById('edit-form');
+        const saveButton = document.getElementById('save-button');
+        const addMessageButton = document.getElementById('add-message-button');
+        const preloader = document.getElementById('preloader');
+
+        let openedCount = 0;
+        let reasons = [];
+
+        function createEnvelope(reason, index) {
+            const envelope = document.createElement('button');
+            envelope.className = 'envelope';
+            envelope.setAttribute('aria-label', `Abrir mensaje número ${index + 1}`);
+            envelope.style.top = '-100px';
+            envelope.innerHTML = `
+                <div class="envelope-inner">
+                    <div class="envelope-body" aria-hidden="true"></div> 
+                    <div class="envelope-flap" aria-hidden="true"></div>
+                    <div class="envelope-heart" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    </div>
+                </div>
+            `;
+            
+            const envelopeInner = envelope.querySelector('.envelope-inner');
+
+            setTimeout(() => {
+                const containerRect = envelopeContainer.getBoundingClientRect();
+                const top = Math.random() * (containerRect.height - 80);
+                const left = Math.random() * (containerRect.width - 120);
+                let rotation = Math.random() * 40 - 20;
+                envelope.style.transition = 'top 1s cubic-bezier(0.175, 0.885, 0.32, 1.275), left 1s ease-out, opacity 0.5s';
+                envelope.style.top = `${top}px`;
+                envelope.style.left = `${left}px`;
+                envelopeInner.style.transform = `rotate(${rotation}deg)`;
+                envelope.classList.add('visible');
+
+                if (index === 0) {
+                    const dynamicWiggle = `
+                        @keyframes wiggle {
+                            0%, 100% { transform: rotate(${rotation - 3}deg); }
+                            50% { transform: rotate(${rotation + 3}deg); }
+                        }
+                    `;
+                    const styleSheet = document.styleSheets[0];
+                    try {
+                        styleSheet.insertRule(dynamicWiggle, styleSheet.cssRules.length);
+                        envelopeInner.style.animation = `wiggle 2s ease-in-out 3s 3`;
+                    } catch(e) { console.warn("Failed to insert keyframe.")}
+                }
+            }, index * 100 + 500);
+
+            let hasMoved = false, isDragging = false;
+            
+            function startDrag(e) {
+                isDragging = true; hasMoved = false;
+                const startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                const startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                const startTop = envelope.offsetTop;
+                const startLeft = envelope.offsetLeft;
+                envelope.classList.add('dragging');
+                envelopeInner.style.animation = 'none'; // Stop animation on drag
+
+                function onMove(moveEvent) {
+                    if (!isDragging) return;
+                    moveEvent.preventDefault();
+                    const moveX = moveEvent.type === 'touchmove' ? moveEvent.touches[0].clientX : moveEvent.clientX;
+                    const moveY = moveEvent.type === 'touchmove' ? moveEvent.touches[0].clientY : moveEvent.clientY;
+                    if (Math.abs(moveX - startX) > 5 || Math.abs(moveY - startY) > 5) hasMoved = true;
+                    
+                    const contRect = envelopeContainer.getBoundingClientRect();
+                    let newLeft = startLeft + (moveX - startX);
+                    let newTop = startTop + (moveY - startY);
+                    envelope.style.left = `${Math.max(0, Math.min(newLeft, contRect.width - envelope.offsetWidth))}px`;
+                    envelope.style.top = `${Math.max(0, Math.min(newTop, contRect.height - envelope.offsetHeight))}px`;
+                }
+
+                function onEnd() {
+                    isDragging = false;
+                    envelope.classList.remove('dragging');
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onEnd);
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('touchend', onEnd);
+                }
+                
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            }
+
+            envelope.addEventListener('mousedown', startDrag);
+            envelope.addEventListener('touchstart', startDrag, { passive: false });
+            
+            envelope.addEventListener('click', () => {
+                if (hasMoved || envelope.classList.contains('opened')) return;
+
+                letterText.textContent = reason;
+                modal.classList.add('show');
+                setTimeout(() => modalEnvelope.classList.add('open-flap'), 100);
+
+                envelope.classList.add('opened');
+                openedCount++;
+                counterElement.textContent = `${openedCount} / ${reasons.length} abiertos`;
+
+                if (openedCount === reasons.length && reasons.length > 0) setTimeout(showFinalMessage, 2500);
+            });
+            envelopeContainer.appendChild(envelope);
+        }
+
+        function closeLetter() {
+            modalEnvelope.classList.remove('open-flap');
+            modal.classList.remove('show');
+        }
+
+        function showFinalMessage() {
+            mainContent.style.opacity = '0';
+            document.querySelectorAll('.envelope').forEach((env, index) => {
+                const inner = env.querySelector('.envelope-inner');
+                inner.style.transition = 'all 1s ease-in-out';
+                setTimeout(() => {
+                    env.style.top = '50%';
+                    env.style.left = '50%';
+                    inner.style.transform = `translate(-50%, -50%) rotate(360deg) scale(0)`;
+                    env.style.opacity = '0';
+                }, index * 20);
+            });
+            setTimeout(() => {
+                 mainContent.style.display = 'none';
+                 finalMessage.classList.remove('opacity-0', 'pointer-events-none');
+            }, 1500);
+        }
+
+        function reset() {
+            openedCount = 0;
+            mainContent.style.display = 'flex';
+            
+            finalMessage.classList.add('opacity-0', 'pointer-events-none');
+            
+            setTimeout(() => {
+                mainContent.style.opacity = '1';
+                envelopeContainer.innerHTML = '';
+                counterElement.textContent = `0 / ${reasons.length} abiertos`;
+                reasons.forEach(createEnvelope);
+            }, 500);
+        }
+
+        function createEditField(reasonText = '') {
+            const fieldWrapper = document.createElement('div');
+            fieldWrapper.className = 'edit-field';
+            const textarea = document.createElement('textarea');
+            textarea.className = "w-full h-24 p-2 pr-8 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-pink-500";
+            textarea.placeholder = `Escribe un mensaje...`;
+            textarea.value = reasonText;
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.setAttribute('aria-label', 'Eliminar mensaje');
+            removeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>`;
+            removeBtn.onclick = () => fieldWrapper.remove();
+            
+            fieldWrapper.appendChild(textarea);
+            fieldWrapper.appendChild(removeBtn);
+            editForm.appendChild(fieldWrapper);
+        }
+
+        function showEditMode() {
+            editModeContainer.classList.add('active');
+            mainContent.style.display = 'none';
+            finalMessage.style.display = 'none';
+            preloader.style.display = 'none';
+            
+            editForm.innerHTML = '';
+            const currentReasons = getReasons();
+            if (currentReasons.length > 0) {
+                currentReasons.forEach(reason => createEditField(reason));
+            } else {
+                 createEditField();
+            }
+        }
+
+        function saveReasons() {
+            const textareas = editForm.querySelectorAll('textarea');
+            const newReasons = Array.from(textareas).map(ta => ta.value.trim()).filter(Boolean);
+            localStorage.setItem('customReasons', JSON.stringify(newReasons));
+            window.location.href = window.location.pathname;
+        }
+
+        function getReasons() {
+            const saved = localStorage.getItem('customReasons');
+            try {
+                const parsed = JSON.parse(saved);
+                return Array.isArray(parsed) ? parsed : defaultReasons;
+            } catch (e) {
+                return defaultReasons;
+            }
+        }
+
+        function createStars() {
+            const sky = document.getElementById('starry-sky');
+            if (sky.children.length > 0) return;
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.animationDuration = `${Math.random() * 2 + 1}s`;
+                star.style.animationDelay = `${Math.random() * 2}s`;
+                sky.appendChild(star);
+            }
+        }
+        
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('edit') === 'true') {
+                showEditMode();
+            } else {
+                mainContent.style.opacity = '1';
+                preloader.style.opacity = '0';
+                preloader.style.pointerEvents = 'none';
+
+                reasons = getReasons();
+                if (reasons.length === 0) {
+                    reasons = defaultReasons;
+                    localStorage.setItem('customReasons', JSON.stringify(reasons));
+                }
+                counterElement.textContent = `0 / ${reasons.length} abiertos`;
+                createStars();
+                reasons.forEach(createEnvelope);
+            }
+        });
+        
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && modal.classList.contains('show')) {
+                closeLetter();
+            }
+        });
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeLetter();
+        });
+        resetButton.addEventListener('click', reset);
+        saveButton.addEventListener('click', saveReasons);
+        addMessageButton.addEventListener('click', () => createEditField());
+    </script>
+</body>
+</html>
+
